@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'firebase_options.dart';
 
 Future<void> main() async {
@@ -28,9 +29,18 @@ class BarkBeaconApp extends StatelessWidget {
           colorScheme: ColorScheme.fromSeed(seedColor: blue),
           scaffoldBackgroundColor: const Color(0xFFF3F7FF),
           textTheme: const TextTheme(
-            headlineMedium: TextStyle(color: ink, fontWeight: FontWeight.w800),
-            titleLarge: TextStyle(color: ink, fontWeight: FontWeight.w800),
-            titleMedium: TextStyle(color: ink, fontWeight: FontWeight.w700),
+            headlineMedium: TextStyle(
+              color: ink,
+              fontWeight: FontWeight.w800,
+            ),
+            titleLarge: TextStyle(
+              color: ink,
+              fontWeight: FontWeight.w800,
+            ),
+            titleMedium: TextStyle(
+              color: ink,
+              fontWeight: FontWeight.w700,
+            ),
             bodyMedium: TextStyle(color: muted, height: 1.5),
           ),
           inputDecorationTheme: InputDecorationTheme(
@@ -67,16 +77,20 @@ class BarkBeaconApp extends StatelessWidget {
 
 class MainPage extends StatefulWidget {
   const MainPage({super.key});
+
   @override
   State<MainPage> createState() => _MainPageState();
 }
 
 class _MainPageState extends State<MainPage> {
   int page = 0;
+  bool saving = false;
+
   final formKey = GlobalKey<FormState>();
   final name = TextEditingController();
   final breed = TextEditingController();
   final details = TextEditingController();
+
   String savedName = '';
   String savedBreed = '';
   String savedDetails = '';
@@ -89,21 +103,59 @@ class _MainPageState extends State<MainPage> {
     super.dispose();
   }
 
-  void save() {
-    if (!formKey.currentState!.validate()) return;
+  Future<void> save() async {
+    if (saving || !formKey.currentState!.validate()) return;
+
     FocusScope.of(context).unfocus();
-    setState(() {
-      savedName = name.text.trim();
-      savedBreed = breed.text.trim();
-      savedDetails = details.text.trim();
-    });
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(const SnackBar(
-        content: Text('Dog profile saved for this session.'),
-        behavior: SnackBarBehavior.floating,
-        backgroundColor: blue,
-      ));
+
+    final petName = name.text.trim();
+    final petBreed = breed.text.trim();
+    final petDetails = details.text.trim();
+
+    setState(() => saving = true);
+
+    try {
+      await FirebaseFirestore.instance.collection('pets').add({
+        'name': petName,
+        'breed': petBreed,
+        'details': petDetails,
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+
+      if (!mounted) return;
+
+      setState(() {
+        savedName = petName;
+        savedBreed = petBreed;
+        savedDetails = petDetails;
+      });
+
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          const SnackBar(
+            content: Text('Saved.'),
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: blue,
+          ),
+        );
+    } catch (error) {
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            content: Text('Could not save: $error'),
+            behavior: SnackBarBehavior.floating,
+            backgroundColor: Colors.red,
+          ),
+        );
+    } finally {
+      if (mounted) {
+        setState(() => saving = false);
+      }
+    }
   }
 
   Widget panel(Widget child) => Container(
@@ -129,12 +181,15 @@ class _MainPageState extends State<MainPage> {
           color: light ? const Color(0xFFDBEAFE) : const Color(0xFFEAF1FF),
           borderRadius: BorderRadius.circular(30),
         ),
-        child: Text(text,
-            style: const TextStyle(
-                color: Color(0xFF1749AE),
-                fontSize: 11,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 1)),
+        child: Text(
+          text,
+          style: const TextStyle(
+            color: Color(0xFF1749AE),
+            fontSize: 11,
+            fontWeight: FontWeight.w800,
+            letterSpacing: 1,
+          ),
+        ),
       );
 
   Widget dogAvatar({double size = 88}) => Container(
@@ -149,7 +204,11 @@ class _MainPageState extends State<MainPage> {
           borderRadius: BorderRadius.circular(size * .32),
           border: Border.all(color: Colors.white, width: 4),
         ),
-        child: Icon(Icons.pets_rounded, color: blue, size: size * .46),
+        child: Icon(
+          Icons.pets_rounded,
+          color: blue,
+          size: size * .46,
+        ),
       );
 
   @override
@@ -168,14 +227,18 @@ class _MainPageState extends State<MainPage> {
         bottomNavigationBar: Container(
           decoration: const BoxDecoration(
             color: Colors.white,
-            border: Border(top: BorderSide(color: Color(0xFFE5EDFA))),
+            border: Border(
+              top: BorderSide(color: Color(0xFFE5EDFA)),
+            ),
           ),
           child: NavigationBar(
             backgroundColor: Colors.white,
             surfaceTintColor: Colors.transparent,
             indicatorColor: const Color(0xFFDBEAFE),
             selectedIndex: page,
-            onDestinationSelected: (value) => setState(() => page = value),
+            onDestinationSelected: (value) {
+              setState(() => page = value);
+            },
             destinations: const [
               NavigationDestination(
                 icon: Icon(Icons.home_outlined, color: muted),
@@ -195,35 +258,50 @@ class _MainPageState extends State<MainPage> {
   Widget home() => ListView(
         padding: const EdgeInsets.fromLTRB(22, 24, 22, 28),
         children: [
-          Row(children: [
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: blue,
-                borderRadius: BorderRadius.circular(15),
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: blue,
+                  borderRadius: BorderRadius.circular(15),
+                ),
+                child: const Icon(
+                  Icons.pets_rounded,
+                  color: Colors.white,
+                ),
               ),
-              child: const Icon(Icons.pets_rounded, color: Colors.white),
-            ),
-            const SizedBox(width: 11),
-            const Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('BarkBeacon',
+              const SizedBox(width: 11),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'BarkBeacon',
                       style: TextStyle(
-                          color: ink, fontWeight: FontWeight.w800, fontSize: 21)),
-                  Text('Together, closer to home.',
-                      style: TextStyle(color: muted, fontSize: 12)),
-                ],
+                        color: ink,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 21,
+                      ),
+                    ),
+                    Text(
+                      'Together, closer to home.',
+                      style: TextStyle(color: muted, fontSize: 12),
+                    ),
+                  ],
+                ),
               ),
-            ),
-            IconButton(
-              onPressed: () => setState(() => page = 1),
-              tooltip: 'Open profile',
-              icon: const Icon(Icons.account_circle_outlined,
-                  color: blue, size: 32),
-            ),
-          ]),
+              IconButton(
+                onPressed: () => setState(() => page = 1),
+                tooltip: 'Open profile',
+                icon: const Icon(
+                  Icons.account_circle_outlined,
+                  color: blue,
+                  size: 32,
+                ),
+              ),
+            ],
+          ),
           const SizedBox(height: 28),
           Container(
             clipBehavior: Clip.antiAlias,
@@ -236,127 +314,181 @@ class _MainPageState extends State<MainPage> {
               borderRadius: BorderRadius.circular(28),
               boxShadow: const [
                 BoxShadow(
-                    color: Color(0x302563EB),
-                    blurRadius: 25,
-                    offset: Offset(0, 12)),
+                  color: Color(0x302563EB),
+                  blurRadius: 25,
+                  offset: Offset(0, 12),
+                ),
               ],
             ),
-            child: Stack(children: [
-              const Positioned(
-                right: -25,
-                top: 12,
-                child: Icon(Icons.pets_rounded,
-                    size: 185, color: Color(0x18FFFFFF)),
-              ),
-              Padding(
-                padding: const EdgeInsets.all(26),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    badge('EVERY DOG HAS A HOME', light: true),
-                    const SizedBox(height: 22),
-                    const Text('Let’s help them\nfind their way.',
-                        style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 33,
-                            fontWeight: FontWeight.w800,
-                            height: 1.15)),
-                    const SizedBox(height: 14),
-                    const Text(
-                        'A familiar face. A helpful neighbour.\nA better chance of getting home.',
-                        style: TextStyle(
-                            color: Color(0xFFE3EDFF), height: 1.6)),
-                    const SizedBox(height: 22),
-                    FilledButton.icon(
-                      style: FilledButton.styleFrom(
-                          backgroundColor: Colors.white, foregroundColor: blue),
-                      onPressed: () => setState(() => page = 1),
-                      icon: Icon(savedName.isEmpty
-                          ? Icons.add_rounded
-                          : Icons.arrow_forward_rounded),
-                      label: Text(savedName.isEmpty
-                          ? 'Add my dog'
-                          : 'View my dog’s profile'),
-                    ),
-                  ],
+            child: Stack(
+              children: [
+                const Positioned(
+                  right: -25,
+                  top: 12,
+                  child: Icon(
+                    Icons.pets_rounded,
+                    size: 185,
+                    color: Color(0x18FFFFFF),
+                  ),
                 ),
-              ),
-            ]),
-          ),
-          const SizedBox(height: 30),
-          Row(children: [
-            const Expanded(
-                child: Text('Your best friend',
-                    style: TextStyle(
-                        color: ink, fontSize: 21, fontWeight: FontWeight.w800))),
-            TextButton(
-              onPressed: () => setState(() => page = 1),
-              child: Text(savedName.isEmpty ? 'Add profile' : 'Edit profile'),
-            ),
-          ]),
-          const SizedBox(height: 10),
-          panel(Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(children: [
-                dogAvatar(size: 76),
-                const SizedBox(width: 14),
-                Expanded(
+                Padding(
+                  padding: const EdgeInsets.all(26),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(savedName.isEmpty ? 'Meet your dog here' : savedName,
-                          style: const TextStyle(
-                              color: ink,
-                              fontSize: 20,
-                              fontWeight: FontWeight.w800)),
-                      const SizedBox(height: 5),
-                      Text(savedName.isEmpty
-                          ? 'Create their first profile'
-                          : savedBreed.isEmpty
-                              ? 'Your four-legged friend'
-                              : savedBreed),
+                      badge('EVERY DOG HAS A HOME', light: true),
+                      const SizedBox(height: 22),
+                      const Text(
+                        'Let’s help them\nfind their way.',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 33,
+                          fontWeight: FontWeight.w800,
+                          height: 1.15,
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                      const Text(
+                        'A familiar face. A helpful neighbour.\n'
+                        'A better chance of getting home.',
+                        style: TextStyle(
+                          color: Color(0xFFE3EDFF),
+                          height: 1.6,
+                        ),
+                      ),
+                      const SizedBox(height: 22),
+                      FilledButton.icon(
+                        style: FilledButton.styleFrom(
+                          backgroundColor: Colors.white,
+                          foregroundColor: blue,
+                        ),
+                        onPressed: () => setState(() => page = 1),
+                        icon: Icon(
+                          savedName.isEmpty
+                              ? Icons.add_rounded
+                              : Icons.arrow_forward_rounded,
+                        ),
+                        label: Text(
+                          savedName.isEmpty
+                              ? 'Add my dog'
+                              : 'View my dog’s profile',
+                        ),
+                      ),
                     ],
                   ),
                 ),
-              ]),
-              const SizedBox(height: 16),
-              Text(savedName.isEmpty
-                  ? 'Keep their name, breed and unique markings together.'
-                  : savedDetails.isEmpty
-                      ? 'Add distinctive markings to make recognition easier.'
-                      : savedDetails),
-              const SizedBox(height: 16),
-              SizedBox(
-                width: double.infinity,
-                child: OutlinedButton.icon(
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: blue,
-                    side: const BorderSide(color: Color(0xFFC9DAFF)),
-                    padding: const EdgeInsets.all(14),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14)),
+              ],
+            ),
+          ),
+          const SizedBox(height: 30),
+          Row(
+            children: [
+              const Expanded(
+                child: Text(
+                  'Your best friend',
+                  style: TextStyle(
+                    color: ink,
+                    fontSize: 21,
+                    fontWeight: FontWeight.w800,
                   ),
-                  onPressed: () => setState(() => page = 1),
-                  icon: const Icon(Icons.pets_outlined),
-                  label: Text(savedName.isEmpty
-                      ? 'Create dog profile'
-                      : 'Open dog profile'),
+                ),
+              ),
+              TextButton(
+                onPressed: () => setState(() => page = 1),
+                child: Text(
+                  savedName.isEmpty ? 'Add profile' : 'Edit profile',
                 ),
               ),
             ],
-          )),
+          ),
+          const SizedBox(height: 10),
+          panel(
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    dogAvatar(size: 76),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            savedName.isEmpty
+                                ? 'Meet your dog here'
+                                : savedName,
+                            style: const TextStyle(
+                              color: ink,
+                              fontSize: 20,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          const SizedBox(height: 5),
+                          Text(
+                            savedName.isEmpty
+                                ? 'Create their first profile'
+                                : savedBreed.isEmpty
+                                    ? 'Your four-legged friend'
+                                    : savedBreed,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+                Text(
+                  savedName.isEmpty
+                      ? 'Keep their name, breed and unique markings together.'
+                      : savedDetails.isEmpty
+                          ? 'Add distinctive markings to make recognition easier.'
+                          : savedDetails,
+                ),
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: blue,
+                      side: const BorderSide(color: Color(0xFFC9DAFF)),
+                      padding: const EdgeInsets.all(14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                    onPressed: () => setState(() => page = 1),
+                    icon: const Icon(Icons.pets_outlined),
+                    label: Text(
+                      savedName.isEmpty
+                          ? 'Create dog profile'
+                          : 'Open dog profile',
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
           const SizedBox(height: 18),
           const Padding(
             padding: EdgeInsets.symmetric(horizontal: 8),
-            child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Icon(Icons.lightbulb_outline_rounded, color: blue, size: 21),
-              SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                    'A clear photo and distinctive markings help people recognise your dog.'),
-              ),
-            ]),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(
+                  Icons.lightbulb_outline_rounded,
+                  color: blue,
+                  size: 21,
+                ),
+                SizedBox(width: 10),
+                Expanded(
+                  child: Text(
+                    'A clear photo and distinctive markings help people '
+                    'recognise your dog.',
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       );
@@ -364,20 +496,33 @@ class _MainPageState extends State<MainPage> {
   Widget profile() => ListView(
         padding: const EdgeInsets.fromLTRB(22, 16, 22, 28),
         children: [
-          Row(children: [
-            IconButton(
-              onPressed: () => setState(() => page = 0),
-              tooltip: 'Back to Home',
-              icon: const Icon(Icons.arrow_back_rounded, color: ink),
-            ),
-            const SizedBox(width: 4),
-            const Text('My dog profile',
+          Row(
+            children: [
+              IconButton(
+                onPressed: () => setState(() => page = 0),
+                tooltip: 'Back to Home',
+                icon: const Icon(
+                  Icons.arrow_back_rounded,
+                  color: ink,
+                ),
+              ),
+              const SizedBox(width: 4),
+              const Text(
+                'My dog profile',
                 style: TextStyle(
-                    color: ink, fontSize: 22, fontWeight: FontWeight.w800)),
-          ]),
+                  color: ink,
+                  fontSize: 22,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ],
+          ),
           const SizedBox(height: 20),
           Container(
-            padding: const EdgeInsets.symmetric(vertical: 26, horizontal: 22),
+            padding: const EdgeInsets.symmetric(
+              vertical: 26,
+              horizontal: 22,
+            ),
             decoration: BoxDecoration(
               gradient: const LinearGradient(
                 colors: [Color(0xFF123EA8), Color(0xFF3B82F6)],
@@ -386,84 +531,127 @@ class _MainPageState extends State<MainPage> {
               ),
               borderRadius: BorderRadius.circular(26),
             ),
-            child: Column(children: [
-              dogAvatar(size: 98),
-              const SizedBox(height: 14),
-              Text(savedName.isEmpty ? 'Their story starts here.' : savedName,
+            child: Column(
+              children: [
+                dogAvatar(size: 98),
+                const SizedBox(height: 14),
+                Text(
+                  savedName.isEmpty
+                      ? 'Their story starts here.'
+                      : savedName,
                   textAlign: TextAlign.center,
                   style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 25,
-                      fontWeight: FontWeight.w800)),
-              const SizedBox(height: 6),
-              const Text('Small details. A familiar face.',
-                  style: TextStyle(color: Color(0xFFE0EAFF))),
-            ]),
-          ),
-          const SizedBox(height: 22),
-          panel(Form(
-            key: formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                const Text('The essentials',
-                    style: TextStyle(
-                        color: ink, fontSize: 19, fontWeight: FontWeight.w800)),
+                    color: Colors.white,
+                    fontSize: 25,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
                 const SizedBox(height: 6),
-                const Text('Help your community recognise your dog.'),
-                const SizedBox(height: 24),
-                TextFormField(
-                  controller: name,
-                  maxLength: 40,
-                  textCapitalization: TextCapitalization.words,
-                  textInputAction: TextInputAction.next,
-                  decoration: const InputDecoration(
-                    labelText: 'Dog’s name *',
-                    hintText: 'e.g. Buddy',
-                    prefixIcon: Icon(Icons.pets_rounded, color: blue),
-                  ),
-                  validator: (value) => value == null || value.trim().isEmpty
-                      ? 'Please enter your dog’s name.'
-                      : null,
+                const Text(
+                  'Small details. A familiar face.',
+                  style: TextStyle(color: Color(0xFFE0EAFF)),
                 ),
-                const SizedBox(height: 18),
-                TextFormField(
-                  controller: breed,
-                  maxLength: 60,
-                  textCapitalization: TextCapitalization.words,
-                  textInputAction: TextInputAction.next,
-                  decoration: const InputDecoration(
-                    labelText: 'Breed (optional)',
-                    hintText: 'e.g. Golden retriever',
-                    prefixIcon: Icon(Icons.info_outline_rounded, color: blue),
-                  ),
-                ),
-                const SizedBox(height: 18),
-                TextFormField(
-                  controller: details,
-                  maxLines: 4,
-                  maxLength: 300,
-                  textCapitalization: TextCapitalization.sentences,
-                  decoration: const InputDecoration(
-                    labelText: 'Identifying details (optional)',
-                    hintText: 'Coat colour, collar and unique markings…',
-                    alignLabelWithHint: true,
-                  ),
-                ),
-                const SizedBox(height: 20),
-                FilledButton.icon(
-                  onPressed: save,
-                  icon: const Icon(Icons.check_circle_outline_rounded),
-                  label: const Text('Save dog profile',
-                      style: TextStyle(fontWeight: FontWeight.w700)),
-                ),
-                const SizedBox(height: 10),
-                const Text('Saved for this demo session.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: muted, fontSize: 12)),
               ],
             ),
-          )),
+          ),
+          const SizedBox(height: 22),
+          panel(
+            Form(
+              key: formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const Text(
+                    'The essentials',
+                    style: TextStyle(
+                      color: ink,
+                      fontSize: 19,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  const Text(
+                    'Help your community recognise your dog.',
+                  ),
+                  const SizedBox(height: 24),
+                  TextFormField(
+                    controller: name,
+                    enabled: !saving,
+                    maxLength: 40,
+                    textCapitalization: TextCapitalization.words,
+                    textInputAction: TextInputAction.next,
+                    decoration: const InputDecoration(
+                      labelText: 'Dog’s name *',
+                      hintText: 'e.g. Buddy',
+                      prefixIcon: Icon(Icons.pets_rounded, color: blue),
+                    ),
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Please enter your dog’s name.';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 18),
+                  TextFormField(
+                    controller: breed,
+                    enabled: !saving,
+                    maxLength: 60,
+                    textCapitalization: TextCapitalization.words,
+                    textInputAction: TextInputAction.next,
+                    decoration: const InputDecoration(
+                      labelText: 'Breed (optional)',
+                      hintText: 'e.g. Golden retriever',
+                      prefixIcon: Icon(
+                        Icons.info_outline_rounded,
+                        color: blue,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 18),
+                  TextFormField(
+                    controller: details,
+                    enabled: !saving,
+                    maxLines: 4,
+                    maxLength: 300,
+                    textCapitalization: TextCapitalization.sentences,
+                    decoration: const InputDecoration(
+                      labelText: 'Identifying details (optional)',
+                      hintText: 'Coat colour, collar and unique markings…',
+                      alignLabelWithHint: true,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  FilledButton.icon(
+                    onPressed: saving ? null : save,
+                    icon: saving
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : const Icon(
+                            Icons.check_circle_outline_rounded,
+                          ),
+                    label: Text(
+                      saving ? 'Saving...' : 'Save dog profile',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  const Text(
+                    "Save your dog's details",
+                    textAlign: TextAlign.center,
+                    style: TextStyle(color: muted, fontSize: 12),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ],
       );
 }
