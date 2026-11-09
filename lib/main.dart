@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'firebase_options.dart';
 import 'my_pets_page.dart';
@@ -116,7 +117,17 @@ class _MainPageState extends State<MainPage> {
     setState(() => saving = true);
 
     try {
-      await FirebaseFirestore.instance.collection('pets').add({
+      final auth = FirebaseAuth.instance;
+      final user = auth.currentUser ?? (await auth.signInAnonymously()).user;
+      if (user == null) {
+        throw StateError('Firebase sign-in did not return a user.');
+      }
+
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .collection('pets')
+          .add({
         'name': petName,
         'breed': petBreed,
         'details': petDetails,
@@ -673,3 +684,4 @@ Widget build(BuildContext context) => Scaffold(
 //sharaf
 
 //rashmika
+
