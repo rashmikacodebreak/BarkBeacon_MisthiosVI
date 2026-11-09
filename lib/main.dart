@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'firebase_options.dart';
+import 'my_pets_page.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -212,48 +213,61 @@ class _MainPageState extends State<MainPage> {
       );
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-        body: SafeArea(
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 600),
-              child: IndexedStack(
-                index: page,
-                children: [home(), profile()],
-              ),
+Widget build(BuildContext context) => Scaffold(
+      body: SafeArea(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 600),
+            child: IndexedStack(
+              index: page,
+              children: [home(), profile()],
             ),
           ),
         ),
-        bottomNavigationBar: Container(
-          decoration: const BoxDecoration(
-            color: Colors.white,
-            border: Border(
-              top: BorderSide(color: Color(0xFFE5EDFA)),
-            ),
-          ),
-          child: NavigationBar(
-            backgroundColor: Colors.white,
-            surfaceTintColor: Colors.transparent,
-            indicatorColor: const Color(0xFFDBEAFE),
-            selectedIndex: page,
-            onDestinationSelected: (value) {
-              setState(() => page = value);
-            },
-            destinations: const [
-              NavigationDestination(
-                icon: Icon(Icons.home_outlined, color: muted),
-                selectedIcon: Icon(Icons.home_rounded, color: blue),
-                label: 'Home',
-              ),
-              NavigationDestination(
-                icon: Icon(Icons.person_outline_rounded, color: muted),
-                selectedIcon: Icon(Icons.person_rounded, color: blue),
-                label: 'Profile',
-              ),
-            ],
+      ),
+      floatingActionButton: page == 0
+          ? FloatingActionButton.extended(
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const MyPetsPage(),
+                  ),
+                );
+              },
+              icon: const Icon(Icons.pets),
+              label: const Text('My Pets'),
+            )
+          : null,
+      bottomNavigationBar: Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          border: Border(
+            top: BorderSide(color: Color(0xFFE5EDFA)),
           ),
         ),
-      );
+        child: NavigationBar(
+          backgroundColor: Colors.white,
+          surfaceTintColor: Colors.transparent,
+          indicatorColor: const Color(0xFFDBEAFE),
+          selectedIndex: page,
+          onDestinationSelected: (value) {
+            setState(() => page = value);
+          },
+          destinations: const [
+            NavigationDestination(
+              icon: Icon(Icons.home_outlined, color: muted),
+              selectedIcon: Icon(Icons.home_rounded, color: blue),
+              label: 'Home',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.person_outline_rounded, color: muted),
+              selectedIcon: Icon(Icons.person_rounded, color: blue),
+              label: 'Profile',
+            ),
+          ],
+        ),
+      ),
+    );
 
   Widget home() => ListView(
         padding: const EdgeInsets.fromLTRB(22, 24, 22, 28),
