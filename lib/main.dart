@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'firebase_options.dart';
 import 'my_pets_page.dart';
+import 'missing_pets_page.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -264,7 +265,11 @@ Widget build(BuildContext context) => Scaffold(
             constraints: const BoxConstraints(maxWidth: 600),
             child: IndexedStack(
               index: page,
-              children: [home(), profile()],
+              children: [
+                home(),
+                profile(),
+                if (page == 2) const MissingPetsPage() else const SizedBox.shrink(),
+              ],
             ),
           ),
         ),
@@ -307,6 +312,11 @@ Widget build(BuildContext context) => Scaffold(
               icon: Icon(Icons.person_outline_rounded, color: muted),
               selectedIcon: Icon(Icons.person_rounded, color: blue),
               label: 'Profile',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.search, color: muted),
+              selectedIcon: Icon(Icons.search, color: blue),
+              label: 'Missing Pets',
             ),
           ],
         ),
