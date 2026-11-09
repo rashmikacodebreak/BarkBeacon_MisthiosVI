@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'firebase_options.dart';
 import 'my_pets_page.dart';
 import 'missing_pets_page.dart';
+import 'pet_map_page.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -87,6 +88,7 @@ class MainPage extends StatefulWidget {
 
 class _MainPageState extends State<MainPage> {
   int page = 0;
+  bool mapOpened = false;
   bool saving = false;
 
   final formKey = GlobalKey<FormState>();
@@ -269,6 +271,7 @@ Widget build(BuildContext context) => Scaffold(
                 home(),
                 profile(),
                 if (page == 2) const MissingPetsPage() else const SizedBox.shrink(),
+                if (mapOpened) const PetMapPage() else const SizedBox.shrink(),
               ],
             ),
           ),
@@ -300,7 +303,10 @@ Widget build(BuildContext context) => Scaffold(
           indicatorColor: const Color(0xFFDBEAFE),
           selectedIndex: page,
           onDestinationSelected: (value) {
-            setState(() => page = value);
+            setState(() {
+              page = value;
+              if (value == 3) mapOpened = true;
+            });
           },
           destinations: const [
             NavigationDestination(
@@ -317,6 +323,11 @@ Widget build(BuildContext context) => Scaffold(
               icon: Icon(Icons.search, color: muted),
               selectedIcon: Icon(Icons.search, color: blue),
               label: 'Missing Pets',
+            ),
+            NavigationDestination(
+              icon: Icon(Icons.map_outlined, color: muted),
+              selectedIcon: Icon(Icons.map, color: blue),
+              label: 'Map',
             ),
           ],
         ),
