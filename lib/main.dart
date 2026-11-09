@@ -98,6 +98,39 @@ class _MainPageState extends State<MainPage> {
   String savedDetails = '';
 
   @override
+void initState() {
+  super.initState();
+  loadHomePet();
+}
+
+Future<void> loadHomePet() async {
+  try {
+    final user = await FirebaseAuth.instance.authStateChanges().first;
+    if (user == null) return;
+
+    final result = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(user.uid)
+        .collection('pets')
+        .orderBy('createdAt', descending: true)
+        .limit(1)
+        .get();
+
+    if (!mounted || result.docs.isEmpty || savedName.isNotEmpty) return;
+
+    final pet = result.docs.first.data();
+
+    setState(() {
+      savedName = pet['name'] as String? ?? '';
+      savedBreed = pet['breed'] as String? ?? '';
+      savedDetails = pet['details'] as String? ?? '';
+    });
+  } on FirebaseException catch (error) {
+    debugPrint('Could not load Home pet: ${error.code}');
+  }
+}
+
+  @override
   void dispose() {
     name.dispose();
     breed.dispose();
