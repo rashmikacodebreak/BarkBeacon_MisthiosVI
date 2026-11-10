@@ -1,0 +1,9 @@
+flutter_native_splash:
+  color: "#FFFFFF"
+  image: "assets/images/barkbeacon_splash.png"
+  ios: false
+  web: false
+
+  android_12:
+    color: "#FFFFFF"
+    image: "assets/images/barkbeacon_icon.png"
