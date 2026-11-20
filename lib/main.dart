@@ -452,7 +452,7 @@ class _MainPageState extends State<MainPage> {
                   badge('EVERY DOG HAS A HOME'),
                   const SizedBox(height: 22),
                   const Text(
-                    'Letâ€™s help them\nfind their way.',
+                    'Lets help them\nfind their way.',
                     style: TextStyle(
                       color: Colors.white,
                       fontSize: 33,
@@ -481,7 +481,7 @@ class _MainPageState extends State<MainPage> {
                     label: Text(
                       savedName.isEmpty
                           ? 'Add my dog'
-                          : 'View my dogâ€™s profile',
+                          : 'View my dog\'s profile',
                     ),
                   ),
                 ],
@@ -658,13 +658,13 @@ class _MainPageState extends State<MainPage> {
                 textCapitalization: TextCapitalization.words,
                 textInputAction: TextInputAction.next,
                 decoration: const InputDecoration(
-                  labelText: 'Dogâ€™s name *',
+                  labelText: 'Dog\'s name *',
                   hintText: 'e.g. Buddy',
                   prefixIcon: Icon(Icons.pets_rounded),
                 ),
                 validator: (value) {
                   if (value == null || value.trim().isEmpty) {
-                    return 'Please enter your dogâ€™s name.';
+                    return 'Please enter your dog\'s name.';
                   }
                   return null;
                 },
